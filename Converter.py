@@ -61,4 +61,3 @@ def converter(string):
 
     string = '$$' + string + '$$'
     return string
-

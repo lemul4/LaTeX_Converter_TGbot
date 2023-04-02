@@ -1,11 +1,9 @@
 import telebot
+import sqlite3
 from Converter import converter 
 
 
 bot = telebot.TeleBot('6199288836:AAEDRijGj-InSLA3tPiheFrr7f3cxyyPiqc')
-
-value = ""
-old_value = ""
 
 keyboard = telebot.types.InlineKeyboardMarkup()
 keyboard.row(telebot.types.InlineKeyboardButton('(', callback_data='('),
@@ -51,17 +49,27 @@ keyboard.row(telebot.types.InlineKeyboardButton(',', callback_data='.'),
 
 @bot.message_handler(content_types=["text"])
 def get_text(message):
-    global value
     match message.text:
         case "/start":
             bot.send_message(message.chat.id, "Привет, это LaTeX Tranlator bot, который поможет тебе перевести любую математическую формулу в LaTeX формат. Чтобы ознакомиться с инструментарием бота введите команду /help")
+            
         case "/help":
-            bot.send_message(message.chat.id, "Доступно 3 вида ввода: через клавиатуру, через кнопки /buttons, с фотографии (отправить фотографию).")
+            bot.send_message(message.chat.id, "Доступно 3 вида ввода: через клавиатуру(просто ввести формулу), через кнопки (/buttons), с фотографии (отправить фотографию).")
+            
         case "/buttons":
-            if value == "":
-                bot.send_message(message.chat.id, "!", reply_markup=keyboard)
-            else:
-                bot.send_message(message.chat.id, value, reply_markup=keyboard)
+            database = sqlite3.connect("user_values.sql")
+            cur = database.cursor()
+            
+            cur.execute('CREATE TABLE IF NOT EXISTS users (chat_id int primary key, message_id int, new_value varchar(50))')
+            database.commit()
+            
+            cur.execute('REPLACE INTO users (chat_id, message_id, new_value) VALUES ("%s", "%s", "!")' % (message.chat.id, message.message_id))
+            database.commit()
+            cur.close()
+            database.close()
+            
+            bot.send_message(message.chat.id, "!", reply_markup=keyboard)
+            
         case _:
             bot.send_message(message.chat.id, converter(message.text))
 
@@ -74,36 +82,54 @@ def get_photo(image):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_func(query):
-    global value, old_value 
-    cursorIndex = value.find("!")
+    n_value = "!"
+    
+    database = sqlite3.connect("user_values.sql")
+    cur = database.cursor()
+    values = cur.execute("SELECT new_value FROM users WHERE chat_id='%s' " % (query.message.chat.id))
+
+    for row in values:
+        n_value = row[0]
+        
+    o_value = n_value
+    cursorIndex = n_value.find("!")
     data = query.data
+   
     match data:
         case "C":
-            value = ""
+            n_value = "!"
+            
         case "=":
-            value = converter(value.replace('!',""))
+            n_value = converter(n_value.replace('!',""))
+            
         case "←":
-            if value != "":
-                value = value[:value.find("!")-1] + value[value.find("!"):]
+            if len(n_value) > 1 and n_value[0] != "!":
+                n_value = n_value[:n_value.find("!")-1] + n_value[n_value.find("!"):]
+                
         case "<":
-            value = value[:cursorIndex-1] + "!" + value[cursorIndex-1] + value[cursorIndex+1:]
+            if cursorIndex != 0:
+                n_value = n_value[:cursorIndex-1] + "!" + n_value[cursorIndex-1] + n_value[cursorIndex+1:]
+                
         case ">":
-            value = value[:cursorIndex] + value[cursorIndex+1] + "!" + value[cursorIndex+2:]
+            if cursorIndex < (len(n_value)-1):
+                n_value = n_value[:cursorIndex] + n_value[cursorIndex+1] + "!" + n_value[cursorIndex+2:]
+                
         case _:
-            if value == "!" or value == "":
-                value = data + "!"
+            if n_value == "!" or n_value == "":
+                n_value = data + "!"
             else:
-                value = value[:value.find("!")] + data + "!" + value[value.find("!")+1:] 
-                  
-    if (value != old_value and value != "") or ("!" != old_value and value == ""):
-        if value == "":
-            bot.edit_message_text(chat_id=query.message.chat.id, message_id=query.message.message_id,
-                                  text="!", reply_markup=keyboard)
-            old_value = "!"
-        else:
-            bot.edit_message_text(chat_id=query.message.chat.id, message_id=query.message.message_id,
-                                  text=value, reply_markup=keyboard)
-     
-    old_value = value
-    
+                n_value = n_value[:n_value.find("!")] + data + "!" + n_value[n_value.find("!")+1:] 
+                
+    if n_value != o_value:
+        bot.edit_message_text(chat_id=query.message.chat.id, message_id=query.message.message_id,
+                                  text=n_value, reply_markup=keyboard)
+        
+    cur.execute("UPDATE users set new_value = '%s' WHERE chat_id = '%s'" % (n_value, query.message.chat.id))
+    database.commit()
+    cursor = cur.execute('SELECT * FROM users')
+    for row in cursor:
+        print(row)
+    cur.close()
+    database.close()
+        
 bot.polling(none_stop=True)
