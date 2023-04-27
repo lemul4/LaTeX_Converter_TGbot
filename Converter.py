@@ -8,6 +8,8 @@ def converter(string):
 
     string = string.replace('∞', '\infty')
 
+    string = string.replace('inf','\infty')
+
     string = string.replace('pi', '\pi')
 
     string = string.replace(' ', '')
