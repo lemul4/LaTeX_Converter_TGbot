@@ -11,8 +11,8 @@ keyboard.row(telebot.types.InlineKeyboardButton('(', callback_data='('),
              telebot.types.InlineKeyboardButton('C', callback_data='C'),
              telebot.types.InlineKeyboardButton('←', callback_data='←'))
 
-keyboard.row(telebot.types.InlineKeyboardButton('tg', callback_data='tg()'),
-             telebot.types.InlineKeyboardButton('cot', callback_data='cot()'),
+keyboard.row(telebot.types.InlineKeyboardButton('[', callback_data='['),
+             telebot.types.InlineKeyboardButton(']', callback_data=']'),
              telebot.types.InlineKeyboardButton('sin', callback_data='sin()'),
              telebot.types.InlineKeyboardButton('cos', callback_data='cos()'))
 
@@ -52,7 +52,7 @@ def get_text(message):
     match message.text:
         case "/start":
             bot.send_message(
-                message.chat.id, "Привет, это LaTeX Tranlator bot, который поможет тебе перевести любую математическую формулу в LaTeX формат. Чтобы ознакомиться с инструментарием бота введите команду /help")
+                message.chat.id, "Привет, это Ekursach.bot , который поможет тебе перевести любую математическую формулу в LaTeX формат. Чтобы ознакомиться с инструментарием бота введите команду /help")
 
         case "/help":
             bot.send_message(message.chat.id, """Ввод вручную (текстовым сообщением):
